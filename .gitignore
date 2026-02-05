@@ -1,1 +1,5 @@
 backend/Plant-Disease-Detection/
+# Secrets (do not commit)
+backend/firebase_notification.json
+backend/db/firebase-key.json
+backend/.env
