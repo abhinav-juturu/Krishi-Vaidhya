@@ -37,13 +37,13 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    aaptOptions {
+        noCompress.add("tflite")
+        noCompress.add("lite")
+    }   
 }
 
 flutter {
     source = "../.."
 }
-
-aaptOptions {
-        noCompress 'tflite'
-        noCompress 'lite'
-    }
