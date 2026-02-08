@@ -660,7 +660,7 @@ class AppTranslations {
     // If the key is missing in the selected language, 
     // it automatically falls back to English.
     return _localizedValues[localeCode]?[key] ?? 
-           _localizedValues['en']![key] ?? 
+           _localizedValues['en']?[key] ?? 
            key;
   }
 }

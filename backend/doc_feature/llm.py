@@ -11,10 +11,11 @@ import base64
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-MODEL_NAME = "gemini-1.5-flash"  # Verified working model
+MODEL_NAME = "gemini-2.0-flash-lite-preview-09-2025"  # Lighter model to avoid 429
 API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
 MIN_CONFIDENCE = 0.60
 
+import time
 
 def analyze_image_with_gemini(image_path: str) -> dict:
     """
@@ -73,14 +74,27 @@ def analyze_image_with_gemini(image_path: str) -> dict:
             ]
         }
 
-        response = requests.post(
-            f"{API_URL}?key={GEMINI_API_KEY}",
-            headers={"Content-Type": "application/json"},
-            data=json.dumps(payload),
-            timeout=60
-        )
-        response.raise_for_status()
-        
+        # RETRY LOGIC for 429 Errors
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    f"{API_URL}?key={GEMINI_API_KEY}",
+                    headers={"Content-Type": "application/json"},
+                    data=json.dumps(payload),
+                    timeout=60
+                )
+                response.raise_for_status()
+                break # Success!
+            except requests.exceptions.HTTPError as e:
+                if response.status_code == 429 and attempt < max_retries - 1:
+                    wait_time = 2 ** attempt # 1s, 2s, 4s
+                    print(f"Rate limited (429). Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    raise e
+
         raw = response.json()["candidates"][0]["content"]["parts"][0]["text"]
         return _extract_json(raw)
 
