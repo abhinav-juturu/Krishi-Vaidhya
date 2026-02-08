@@ -1,0 +1,29 @@
+backend/Plant-Disease-Detection/
+# Secrets (do not commit)
+backend/firebase_notification.json
+backend/db/firebase-key.json
+backend/.env
+# git-auth-check
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+
+# Flutter / Dart
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

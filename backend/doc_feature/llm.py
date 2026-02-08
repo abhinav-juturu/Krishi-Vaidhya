@@ -1,0 +1,91 @@
+# llm.py
+"""
+LLM reasoning module.
+Consumes ONLY verified ML + Grad-CAM output.
+"""
+
+import os
+import json
+import requests
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+MODEL_NAME = "gemini-2.5-flash"
+API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
+MIN_CONFIDENCE = 0.60
+
+
+def _validate_ml_output(ml_output: dict):
+    required = ["crop", "predicted_disease", "confidence", "explainability"]
+    for k in required:
+        if k not in ml_output:
+            raise ValueError(f"Missing field: {k}")
+
+    if ml_output["confidence"] < MIN_CONFIDENCE:
+        raise ValueError("Confidence too low for LLM reasoning")
+
+    for k in ["method", "summary"]:
+        if k not in ml_output["explainability"]:
+            raise ValueError(f"Missing explainability field: {k}")
+
+
+def _extract_json(text: str) -> dict:
+    text = text.strip()
+
+    if text.startswith("```"):
+        text = text.split("```")[1]
+
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start == -1 or end == -1:
+        raise RuntimeError(f"LLM did not return JSON:\n{text}")
+
+    return json.loads(text[start:end + 1])
+
+
+def get_llm_explanation(ml_output: dict) -> dict:
+    _validate_ml_output(ml_output)
+
+    if not GEMINI_API_KEY:
+        print("GEMINI_API_KEY not set. Returning mock explanation.")
+        return {
+            "disease_overview": f"This is a simulated explanation for {ml_output.get('predicted_disease', 'unknown disease')}.",
+            "why_this_prediction": "The AI model detected patterns consistent with this disease based on leaf coloration and lesions.",
+            "chemical_treatments": ["Mock Chemical A", "Mock Chemical B"],
+            "organic_treatments": ["Neem Oil", "Copper Fungicide"],
+            "prevention_tips": ["Ensure proper spacing", "Avoid overhead watering"]
+        }
+
+    prompt = f"""
+You are an agricultural plant pathology explanation system.
+
+RULES:
+- Do NOT invent diseases
+- Use ONLY the AI output
+- Reference Grad-CAM summary
+
+AI OUTPUT:
+{json.dumps(ml_output, indent=2)}
+
+Return STRICT JSON with:
+disease_overview
+why_this_prediction
+chemical_treatments
+organic_treatments
+prevention_tips
+"""
+
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+
+    response = requests.post(
+        f"{API_URL}?key={GEMINI_API_KEY}",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(payload),
+        timeout=60
+    )
+
+    response.raise_for_status()
+
+    raw = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+    return _extract_json(raw)
